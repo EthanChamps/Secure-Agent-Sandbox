@@ -1,0 +1,17 @@
+name: security-regression
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install locked toolchain
+        run: python3 -m pip install uv==0.8.22
+      - run: uv sync --locked --python 3.12
+      - run: uv run pytest -q
+      - run: uv run ruff check .

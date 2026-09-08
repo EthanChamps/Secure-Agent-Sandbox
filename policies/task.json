@@ -1,0 +1,3 @@
+{"rules":[
+  {"effect":"allow","tool":"artifact.inspect","resources":[2],"max_bytes":8192}
+]}

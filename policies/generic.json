@@ -1,0 +1,4 @@
+{"rules":[
+  {"effect":"allow","tool":"artifact.inspect","resources":[2],"max_bytes":65536},
+  {"effect":"forbid","tool":"artifact.delete","resources":[2],"max_bytes":1048576}
+]}

@@ -1,0 +1,23 @@
+{
+  "status": "deployment contract; not a runtime configuration file",
+  "firecracker": {
+    "requires": ["Linux KVM", "jailer", "dedicated tenant cgroup v2", "guest watchdog", "host TTL reaper"],
+    "vcpu_count": 1,
+    "memory_mib": 128,
+    "wall_seconds": 10,
+    "cpu_budget_usec": 5000000,
+    "scratch_mib": 16,
+    "rootfs": "verified immutable image; no shared host directories",
+    "network": "none by default; optional dedicated proxy-only TAP firewall"
+  },
+  "wasi": {
+    "component_digest_required": true,
+    "fuel": 1000000,
+    "memory_bytes": 16777216,
+    "wall_seconds": 2,
+    "allowed_imports": ["secure:tools/stripe-read@0.1.0"],
+    "inherit_environment": false,
+    "preopened_directories": [],
+    "sockets": false
+  }
+}

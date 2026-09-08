@@ -1,0 +1,16 @@
+{
+  "status": "security contract; translate and validate against pinned proxy release",
+  "default": "deny",
+  "services": [{
+    "host": "api.stripe.com",
+    "port": 443,
+    "methods": ["GET"],
+    "paths": ["/v1/prices/OPERATOR_APPROVED_PRICE_ID"],
+    "query_parameters": [],
+    "request_body_bytes": 0,
+    "response_body_bytes": 16384,
+    "redirects": false,
+    "credential_source": "operator secret manager reference",
+    "token_binding": ["tenant", "run", "service", "expiry", "workload identity"]
+  }]
+}

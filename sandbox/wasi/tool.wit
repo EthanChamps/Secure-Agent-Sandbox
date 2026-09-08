@@ -1,0 +1,14 @@
+package secure:tools@0.1.0;
+
+// No filesystem, sockets, environment or general HTTP imports.
+interface stripe-read {
+    record price { amount-minor: u64, currency: currency-code }
+    enum currency-code { usd, gbp, eur }
+    // An operator-mapped index, not an attacker-selected URL or credential.
+    lookup-price: func(product-index: u32) -> result<price, u32>;
+}
+
+world price-tool {
+    import stripe-read;
+    export run: func(product-index: u32) -> result<u64, u32>;
+}
