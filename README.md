@@ -68,6 +68,18 @@ To start your own project, select **Use this template → Create a new repositor
 
 For actual sandbox execution, follow [deployment guidance](docs/DEPLOYMENT.md). Do not run the Docker adapter in the LLM service: Docker daemon access is host administration authority.
 
+## gVisor execution lifecycle
+
+The Linux gVisor adapter starts only pinned images with the `runsc` runtime, no network, a read-only root filesystem, a non-root user, dropped capabilities and bounded resources. Every adapter-created container is marked with the exact `secure-agent-sandbox.managed=1` label.
+
+The template includes a label-scoped reaper for an independent host watchdog:
+
+```sh
+uv run python -m secure_agent_sandbox.sandbox.reaper --max-age-seconds 2400
+```
+
+It only removes expired containers that Docker confirms carry that label; it does not operate on a name prefix or unlabelled containers. Run it outside the workload process, retain its output in your operational logs, and alert if it fails. The reaper complements the adapter's immediate cleanup path—it does not replace runtime admission controls, external audit, or a dedicated execution host.
+
 ## Five boundaries
 
 | Boundary | What it enforces | What it does not establish |
@@ -97,7 +109,9 @@ Secure-Agent-Sandbox/
 │   │   ├── validator.py
 │   │   └── orchestrator.py
 │   ├── policies/engine.py
-│   ├── sandbox/gvisor.py
+│   ├── sandbox/
+│   │   ├── gvisor.py
+│   │   └── reaper.py
 │   └── demo.py
 ├── policies/
 │   ├── generic.json
