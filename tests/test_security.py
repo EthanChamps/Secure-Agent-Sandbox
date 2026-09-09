@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from secure_agent_sandbox.policies.engine import (
     PolicyEngine,
     Rule,
 )
+from secure_agent_sandbox.sandbox import gvisor
 
 GOOD = {
     "file_index": 2,
@@ -149,3 +151,55 @@ def test_solver_unknown_fails_closed(monkeypatch):
     monkeypatch.setattr(z3.Solver, "check", lambda self: z3.unknown)
     with pytest.raises(HumanAuthorizationRequired):
         engine().narrow(policy(10))
+
+
+def test_gvisor_execution_is_marked_for_an_independent_reaper(monkeypatch):
+    calls = []
+
+    def run(args, **kwargs):
+        calls.append((args, kwargs))
+        return type("Result", (), {"returncode": 0, "stderr": b""})()
+
+    monkeypatch.setattr(gvisor.sys, "platform", "linux")
+    monkeypatch.setattr(gvisor.subprocess, "run", run)
+    assert gvisor.execute(b"pass", "registry.example/tool@sha256:" + "a" * 64) == 0
+    assert "--label=secure-agent-sandbox.managed=1" in calls[0][0]
+    assert calls[0][0][calls[0][0].index("--runtime=runsc")] == "--runtime=runsc"
+
+
+def test_reaper_only_removes_expired_adapter_containers(monkeypatch):
+    identifier = "a" * 64
+    calls = []
+    record = [{
+        "Created": "2026-09-09T10:00:00.000000000Z",
+        "Config": {"Labels": {"secure-agent-sandbox.managed": "1"}},
+    }]
+
+    def run(args, **kwargs):
+        calls.append(args)
+        if args[1:3] == ["ps", "-aq"]:
+            return type("Result", (), {"stdout": identifier + "\n"})()
+        if args[1] == "inspect":
+            return type("Result", (), {"returncode": 0, "stdout": json.dumps(record)})()
+        return type("Result", (), {"returncode": 0, "stderr": b""})()
+
+    monkeypatch.setattr(gvisor.sys, "platform", "linux")
+    monkeypatch.setattr(gvisor.subprocess, "run", run)
+    assert gvisor.reap_expired(60, now=dt.datetime(2026, 9, 9, 10, 2, tzinfo=dt.UTC)) == (identifier,)
+    assert calls[-1] == ["docker", "rm", "-f", identifier]
+
+
+def test_reaper_rejects_unlabelled_or_invalid_container_records(monkeypatch):
+    identifier = "b" * 64
+
+    def run(args, **kwargs):
+        if args[1:3] == ["ps", "-aq"]:
+            return type("Result", (), {"stdout": identifier + "\n"})()
+        return type("Result", (), {"returncode": 0, "stdout": json.dumps([{
+            "Created": "2026-09-09T10:00:00Z", "Config": {"Labels": {}},
+        }])})()
+
+    monkeypatch.setattr(gvisor.sys, "platform", "linux")
+    monkeypatch.setattr(gvisor.subprocess, "run", run)
+    with pytest.raises(RuntimeError, match="outside the adapter contract"):
+        gvisor.reap_expired(60, now=dt.datetime(2026, 9, 9, 10, 2, tzinfo=dt.UTC))
